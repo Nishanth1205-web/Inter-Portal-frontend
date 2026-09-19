@@ -19,7 +19,12 @@ export const LoginPage: React.FC = () => {
       await login(email, password);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please check credentials.');
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        const debugInfo = `Error: ${err.message}. URL tried: ${err.config?.baseURL}${err.config?.url}`;
+        setError(`Login failed. Debug Info: ${debugInfo}`);
+      }
     } finally {
       setLoading(false);
     }
