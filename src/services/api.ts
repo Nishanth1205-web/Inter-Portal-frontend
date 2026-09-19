@@ -52,8 +52,9 @@ api.interceptors.response.use(
 export const authApi = {
   login: (data: any) => api.post('/auth/login', data),
   register: (data: any) => api.post('/auth/register', data),
-  getMe: () => api.get('/auth/me'),
+  getMe: () => api.get('/auth/profile'),
   logout: () => api.post('/auth/logout'),
+  impersonate: (data: { role: string }) => api.post('/auth/impersonate', data),
 };
 
 export const dashboardApi = {

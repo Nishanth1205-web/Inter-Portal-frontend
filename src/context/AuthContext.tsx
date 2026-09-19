@@ -27,14 +27,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (token) {
         try {
           const res = await authApi.getMe();
-          if (res.data?.data?.user) {
-            setUser(res.data.data.user);
+          const userData = res.data?.data?.user || res.data?.data;
+          if (userData) {
+            setUser(userData);
           }
         } catch (_err) {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('user');
           localStorage.removeItem('originalRole');
+          localStorage.removeItem('superAdminAccessToken');
+          localStorage.removeItem('superAdminRefreshToken');
         }
       }
       setLoading(false);
@@ -64,21 +67,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     localStorage.removeItem('originalRole');
+    localStorage.removeItem('superAdminAccessToken');
+    localStorage.removeItem('superAdminRefreshToken');
     setUser(null);
     setOriginalRole(null);
   };
 
   const quickSwitch = async (role: Role) => {
-    const credentials: Record<Role, { email: string; pass: string }> = {
-      SUPER_ADMIN: { email: 'superadmin@inter.edu', pass: 'SuperAdmin@123' },
-      ADMIN: { email: 'admin@inter.edu', pass: 'Admin@123' },
-      STUDENT: { email: 'student1@inter.edu', pass: 'Student@123' },
-    };
+    if (role === 'SUPER_ADMIN') {
+      const saToken = localStorage.getItem('superAdminAccessToken');
+      const saRefresh = localStorage.getItem('superAdminRefreshToken');
+      if (saToken && saRefresh) {
+        localStorage.setItem('accessToken', saToken);
+        localStorage.setItem('refreshToken', saRefresh);
+        localStorage.removeItem('superAdminAccessToken');
+        localStorage.removeItem('superAdminRefreshToken');
+        
+        try {
+          const res = await authApi.getMe();
+          const userData = res.data?.data?.user || res.data?.data;
+          if (userData) setUser(userData);
+        } catch (err) {}
+      }
+      return;
+    }
 
-    const cred = credentials[role];
-    if (cred) {
-      // pass isQuickSwitch = true
-      await login(cred.email, cred.pass, true);
+    // Switching TO Student/Admin
+    if (!localStorage.getItem('superAdminAccessToken')) {
+      localStorage.setItem('superAdminAccessToken', localStorage.getItem('accessToken') || '');
+      localStorage.setItem('superAdminRefreshToken', localStorage.getItem('refreshToken') || '');
+    }
+
+    try {
+      const res = await authApi.impersonate({ role });
+      const { user: targetUser, accessToken, refreshToken } = res.data.data;
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('user', JSON.stringify(targetUser));
+      setUser(targetUser);
+    } catch (err) {
+      console.error('Failed to impersonate', err);
     }
   };
 
